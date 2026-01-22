@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -70,7 +71,8 @@ public class CustomerModel {
             //TODO
             // 1. Merges items with the same product ID (combining their quantities).
             // 2. Sorts the products in the trolley by product ID.
-            trolley.add(theProduct);
+            //trolley.add(theProduct);
+            organisedTrolley();
             displayTaTrolley = ProductListFormatter.buildString(trolley); //build a String for trolley so that we can show it
         }
         else{
@@ -79,6 +81,27 @@ public class CustomerModel {
         }
         displayTaReceipt=""; // Clear receipt to switch back to trolleyPage (receipt shows only when not empty)
         updateView();
+    }
+
+    void organisedTrolley()
+    {
+        for (Product p : trolley)
+        {
+            //Check if current product has the same ID as the product being added
+            if (p.getProductId().equals(theProduct.getProductId()))
+            {
+                //If product already exists in trolley, increase product quantity instead of adding duplicates
+                p.setOrderedQuantity(p.getOrderedQuantity() + theProduct.getOrderedQuantity());
+                return;
+            }
+        }
+        //If the product was not found in the trolley, create new product object using the details of theProduct
+        Product pNew = new Product(theProduct.getProductId(), theProduct.getProductDescription(),
+                theProduct.getProductImageName(), theProduct.getUnitPrice(), theProduct.getStockQuantity());
+        trolley.add(pNew);
+        //Sort trolley by productID in ascending order
+        //Comparator.comparing used to keep sorting logic clear
+        trolley.sort(Comparator.comparing(Product::getProductId));
     }
 
     void checkOut() throws IOException, SQLException {
