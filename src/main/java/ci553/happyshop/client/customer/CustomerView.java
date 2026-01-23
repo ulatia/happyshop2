@@ -80,6 +80,7 @@ public class CustomerView  {
         Label laPageTitle = new Label("Search by Product ID/Name");
         laPageTitle.setStyle(UIStyle.labelTitleStyle);
 
+        //search by product ID
         Label laId = new Label("ID:      ");
         laId.setStyle(UIStyle.labelStyle);
         tfId = new TextField();
@@ -87,6 +88,7 @@ public class CustomerView  {
         tfId.setStyle(UIStyle.textFiledStyle);
         HBox hbId = new HBox(10, laId, tfId);
 
+        //search by name
         Label laName = new Label("Name:");
         laName.setStyle(UIStyle.labelStyle);
         tfName = new TextField();
@@ -94,15 +96,18 @@ public class CustomerView  {
         tfName.setStyle(UIStyle.textFiledStyle);
         HBox hbName = new HBox(10, laName, tfName);
 
+        //Buttons
         Label laPlaceHolder = new Label(  " ".repeat(15)); //create left-side spacing so that this HBox aligns with others in the layout.
         Button btnSearch = new Button("Search");
         btnSearch.setStyle(UIStyle.buttonStyle);
         btnSearch.setOnAction(this::buttonClicked);
-        Button btnAddToTrolley = new Button("Add to Trolley");
+        //"add to trolley" was removed so adding is controlled from item-level button +
+        /*Button btnAddToTrolley = new Button("Add to Trolley");
         btnAddToTrolley.setStyle(UIStyle.buttonStyle);
-        btnAddToTrolley.setOnAction(this::buttonClicked);
-        HBox hbBtns = new HBox(10, laPlaceHolder,btnSearch, btnAddToTrolley);
+        btnAddToTrolley.setOnAction(this::buttonClicked);*/
+        HBox hbBtns = new HBox(10, laPlaceHolder,btnSearch);
 
+        //product review area
         ivProduct = new ImageView("imageHolder.jpg");
         ivProduct.setFitHeight(60);
         ivProduct.setFitWidth(60);
@@ -125,12 +130,32 @@ public class CustomerView  {
     }
 
     private VBox CreateTrolleyPage() {
+
         Label laPageTitle = new Label("🛒🛒  Trolley 🛒🛒");
         laPageTitle.setStyle(UIStyle.labelTitleStyle);
 
         taTrolley = new TextArea();
         taTrolley.setEditable(false);
         taTrolley.setPrefSize(WIDTH/2, HEIGHT-50);
+
+        //Item-level control UI
+        Button btnPlus = new Button("+");
+        btnPlus.setStyle(UIStyle.buttonStyle);
+        btnPlus.setOnAction(this::buttonClicked);
+
+        Button btnMinus = new Button("-");
+        btnMinus.setStyle(UIStyle.buttonStyle);
+        btnMinus.setOnAction(this::buttonClicked);
+
+        Button btnRemove = new Button("Remove");
+        btnRemove.setStyle(UIStyle.buttonStyle);
+        btnRemove.setOnAction(this::buttonClicked);
+
+        HBox hbItemControls = new HBox(10,
+                 btnPlus, btnMinus, btnRemove);
+        hbItemControls.setAlignment(Pos.CENTER);
+        hbItemControls.setStyle("-fx-padding: 10px;");
+        //--------------------------------------------------------
 
         Button btnCancel = new Button("Cancel");
         btnCancel.setOnAction(this::buttonClicked);
@@ -144,11 +169,13 @@ public class CustomerView  {
         hbBtns.setStyle("-fx-padding: 15px;");
         hbBtns.setAlignment(Pos.CENTER);
 
-        vbTrolleyPage = new VBox(15, laPageTitle, taTrolley, hbBtns);
+        vbTrolleyPage = new VBox(15, laPageTitle, taTrolley, hbItemControls, hbBtns); //...
         vbTrolleyPage.setPrefWidth(COLUMN_WIDTH);
         vbTrolleyPage.setAlignment(Pos.TOP_CENTER);
         vbTrolleyPage.setStyle("-fx-padding: 15px;");
         return vbTrolleyPage;
+
+
     }
 
     private VBox createReceiptPage() {
@@ -171,18 +198,20 @@ public class CustomerView  {
         return vbReceiptPage;
     }
 
-
     private void buttonClicked(ActionEvent event) {
         try{
             Button btn = (Button)event.getSource();
             String action = btn.getText();
-            if(action.equals("Add to Trolley")){
-                showTrolleyOrReceiptPage(vbTrolleyPage); //ensure trolleyPage shows if the last customer did not close their receiptPage
-            }
-            if(action.equals("OK & Close")){
+
+            //keep trolley visible for trolley-relates actions (+/-/remove/close receipt)
+            if(action.equals("Add to Trolley") || action.equals("OK & Close") ||
+                    action.equals("+") || action.equals("-") || action.equals("Remove"))
+            {
+                //ensure trolleyPage shows if the last customer did not close their receiptPage
                 showTrolleyOrReceiptPage(vbTrolleyPage);
             }
             cusController.doAction(action);
+
         }
         catch(SQLException e){
             e.printStackTrace();
@@ -190,7 +219,6 @@ public class CustomerView  {
             throw new RuntimeException(e);
         }
     }
-
 
     public void update(String imageName, String searchResult, String trolley, String receipt) {
 

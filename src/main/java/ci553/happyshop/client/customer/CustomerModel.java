@@ -174,12 +174,15 @@ public class CustomerModel {
                         theOrder.getOrderId(), theOrder.getOrderedDateTime(), itemCount, totalCostReceipt,
                         ProductListFormatter.buildString(theOrder.getProductList())
                 );
+                //Clear trolley after successful checkout
                 trolley.clear();
                 displayTaTrolley ="";
+
+                //Tell view to swap to receipt page immediately
                 cusView.showReceiptPage(displayTaReceipt);
                 updateView();
                 return;
-                //System.out.println(displayTaReceipt);
+
             }
             else{ // Some products have insufficient stock — build an error message to inform the customer
                 StringBuilder errorMsg = new StringBuilder();
@@ -285,4 +288,83 @@ public class CustomerModel {
     public ArrayList<Product> getTrolley() {
         return trolley;
     }
+
+    //For Item-level control, button behaviour
+    //Increase quantity of an item in the trolley by productId
+    void increase() {
+         if (theProduct == null) {
+             displayLaSearchResult = "Please search for a product first, then press + to add it to the trolley.";
+             updateView();
+             return;
+         }
+         //Reuse organisedTrolley logic (merge + sort)
+        organisedTrolley();
+
+         //Refresh trolley text area and clear any previous receipt text
+         displayTaTrolley = ProductListFormatter.buildString(trolley);
+         displayTaReceipt = "";
+         updateView();
+
+    }
+
+    //Decrease quantity of an item in the trolley by productId
+    void decrease() {
+        if (theProduct == null) {
+            displayLaSearchResult = "Please search for a product first, then press - to reduce it from the trolley.";
+            updateView();
+            return;
+        }
+
+        String targetId = theProduct.getProductId();
+
+        for (int i = 0; i < trolley.size(); i++) {
+            Product p = trolley.get(i);
+            if (p.getProductId().equals(targetId)) {
+                int newQty = p.getOrderedQuantity() - 1;
+
+                //Consistent rule: if quantity hits 0, remove item
+                if (newQty <= 0) {
+                    trolley.remove(i); //remove if hits 0
+                } else {
+                    p.setOrderedQuantity(newQty);
+                }
+                displayTaTrolley = ProductListFormatter.buildString(trolley);
+                updateView();
+                return;
+            }
+        }
+        displayLaSearchResult = "That product is not currently in your trolley.";
+        updateView();
+    }
+
+    //remove quantity of an item in the trolley by productId
+    //Removes the trolley line completely (regardless of quantity)
+    void remove() {
+        if (theProduct == null) {
+            displayLaSearchResult = "Please search for a product first, then press Remove to delete it from the trolley.";
+            updateView();
+            return;
+        }
+
+        String targetId = theProduct.getProductId();
+
+        boolean removed = trolley.removeIf(p-> p.getProductId().equals(targetId));
+        if (!removed) {
+            displayLaSearchResult = "That product is not currently in your trolley.";
+        }
+
+        displayTaTrolley = ProductListFormatter.buildString(trolley);
+        updateView();
+    }
+
+    //test helper
+    void setTheProductForTest(Product p) {
+         this.theProduct = p;
+    }
+
+    void setViewForTest(CustomerView view) {
+        this.cusView = view;
+    }
+
+
 }

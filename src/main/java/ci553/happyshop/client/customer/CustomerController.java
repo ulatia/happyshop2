@@ -23,6 +23,17 @@ public class CustomerController {
             case "OK & Close":
                 cusModel.closeReceipt();
                 break;
+
+            //Item-level control
+            case "+":
+               cusModel.increase();
+               break;
+            case "-":
+               cusModel.decrease();
+               break;
+            case "Remove":
+               cusModel.remove();
+               break;
         }
     }
 
