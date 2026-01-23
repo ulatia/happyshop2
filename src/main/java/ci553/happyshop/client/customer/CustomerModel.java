@@ -11,10 +11,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * TODO
@@ -104,8 +101,51 @@ public class CustomerModel {
         trolley.sort(Comparator.comparing(Product::getProductId));
     }
 
+    //------Checkout helpers methods
+    //Checkout only valid if trolley contains at least one item
+    public boolean isCheckoutValid() {
+        return !trolley.isEmpty();
+    }
+
+    //Calculates total number of items in the trolley
+    public int getTotalItemCount() {
+        int total = 0;
+        for (Product p : trolley) {
+            total += p.getOrderedQuantity();
+        }
+        return total;
+    }
+
+    //Calculates total cost of all items in the trolley
+    public double getTotalCost() {
+        double total = 0.0;
+        for (Product p : trolley) {
+            total += p.getOrderedQuantity() * p.getUnitPrice();
+        }
+        return total;
+    }
+
     void checkOut() throws IOException, SQLException {
-        if(!trolley.isEmpty()){
+
+        // 1 validation - prevent checkout if trolley is empty
+        if (!isCheckoutValid()) {
+            displayTaTrolley = "Your trolley is empty";
+            cusView.showInfoMessage("Checkout blocked",
+                    "Your trolley is empty. Add items before checking out.");
+            updateView();
+            return;
+        }
+
+        // 2 confirm dialog - shows total/item count
+        int totalItems = getTotalItemCount();
+        double totalCost = getTotalCost();
+
+        //Ask user to confirm checkout
+        boolean confirmed = cusView.showConfirmCheckoutDialog(totalItems, totalCost);
+        if (!confirmed) {
+            //User cancelled checkout
+            return;
+        }
             // Group the products in the trolley by productId to optimize stock checking
             // Check the database for sufficient stock for all products in the trolley.
             // If any products are insufficient, the update will be rolled back.
@@ -118,15 +158,28 @@ public class CustomerModel {
                 //get OrderHub and tell it to make a new Order
                 OrderHub orderHub =OrderHub.getOrderHub();
                 Order theOrder = orderHub.newOrder(trolley);
-                trolley.clear();
-                displayTaTrolley ="";
+               // trolley.clear();
+                //displayTaTrolley ="";
+
+                //A clear receipt for the customer
+                int itemCount = 0;
+                double totalCostReceipt = 0.0;
+                for (Product p : theOrder.getProductList()) {
+                    itemCount += p.getOrderedQuantity();
+                    totalCostReceipt += p.getOrderedQuantity() * p.getUnitPrice();
+                }
                 displayTaReceipt = String.format(
-                        "Order_ID: %s\nOrdered_Date_Time: %s\n%s",
-                        theOrder.getOrderId(),
-                        theOrder.getOrderedDateTime(),
+                        "Checkout Successful!\n\n" + "Order_ID: %s\n" + "Ordered_Date_Time: %s\n\n" +
+                                "Items: %d\n" + "Total: £%.2f\n" + "-----------------------------------\n" + "%s",
+                        theOrder.getOrderId(), theOrder.getOrderedDateTime(), itemCount, totalCostReceipt,
                         ProductListFormatter.buildString(theOrder.getProductList())
                 );
-                System.out.println(displayTaReceipt);
+                trolley.clear();
+                displayTaTrolley ="";
+                cusView.showReceiptPage(displayTaReceipt);
+                updateView();
+                return;
+                //System.out.println(displayTaReceipt);
             }
             else{ // Some products have insufficient stock — build an error message to inform the customer
                 StringBuilder errorMsg = new StringBuilder();
@@ -144,14 +197,32 @@ public class CustomerModel {
                 // 2. Trigger a message window to notify the customer about the insufficient stock, rather than directly changing displayLaSearchResult.
                 //You can use the provided RemoveProductNotifier class and its showRemovalMsg method for this purpose.
                 //remember close the message window where appropriate (using method closeNotifierWindow() of RemoveProductNotifier class)
+
+                // 3 remove products with insufficient stock from the trolley
+                Set<String> insufficientIDs = new HashSet<>();
+                for (Product p : insufficientProducts) {
+                    insufficientIDs.add(p.getProductId());
+                }
+
+                //Remove any trolley items whose productID is in the insufficient list
+                trolley.removeIf(p -> insufficientIDs.contains(p.getProductId()));
+
+                //Rebuild trolley display after removing items
+                displayTaTrolley = ProductListFormatter.buildString(trolley);
+
+                // 4 notify customer using a message window
+                RemoveProductNotifier notifier = new RemoveProductNotifier();
+                notifier.cusView = cusView;
+                notifier.showRemovalMsg("Checkout failed. These items were removed due to insufficient stock:\n\n" + errorMsg);
+
                 displayLaSearchResult = "Checkout failed due to insufficient stock for the following products:\n" + errorMsg.toString();
                 System.out.println("stock is not enough");
             }
-        }
-        else{
-            displayTaTrolley = "Your trolley is empty";
-            System.out.println("Your trolley is empty");
-        }
+
+            //Trolley already cleared earlier
+            trolley.clear();
+            displayTaTrolley = "";
+
         updateView();
     }
 
@@ -159,7 +230,7 @@ public class CustomerModel {
      * Groups products by their productId to optimize database queries and updates.
      * By grouping products, we can check the stock for a given `productId` once, rather than repeatedly
      */
-    private ArrayList<Product> groupProductsById(ArrayList<Product> proList) {
+     ArrayList<Product> groupProductsById(ArrayList<Product> proList) {
         Map<String, Product> grouped = new HashMap<>();
         for (Product p : proList) {
             String id = p.getProductId();
@@ -167,9 +238,17 @@ public class CustomerModel {
                 Product existing = grouped.get(id);
                 existing.setOrderedQuantity(existing.getOrderedQuantity() + p.getOrderedQuantity());
             } else {
-                // Make a shallow copy to avoid modifying the original
-                grouped.put(id,new Product(p.getProductId(),p.getProductDescription(),
-                        p.getProductImageName(),p.getUnitPrice(),p.getStockQuantity()));
+                // Make a shallow copy to avoid modifying the original trolley item
+                //orderedQuantity must be copied explicitly to preserve checkout quantities
+                // (important for stock checking)
+                Product copy = new Product(
+                        p.getProductId(), p.getProductDescription(),
+                        p.getProductImageName(), p.getUnitPrice(),
+                        p.getStockQuantity()
+                );
+                //Copy orderedQuantity to ensure stock validation uses the correct requested amount
+                copy.setOrderedQuantity(p.getOrderedQuantity());
+                grouped.put(id, copy);
             }
         }
         return new ArrayList<>(grouped.values());

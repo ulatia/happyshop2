@@ -17,6 +17,7 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Optional;
 
 /**
  * The CustomerView is separated into two sections by a line :
@@ -215,4 +216,45 @@ public class CustomerView  {
         return new WindowBounds(viewWindow.getX(), viewWindow.getY(),
                   viewWindow.getWidth(), viewWindow.getHeight());
     }
+
+    //For checkout
+    //Displays confirmation dialog before checkout
+    public boolean showConfirmCheckoutDialog(int totalItems, double totalCost) {
+        //Create a confirmation-type alert dialog
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+
+        //Set dialog title and header text
+        alert.setTitle("Confirm Checkout");
+        alert.setHeaderText("Are you sure you want to checkout?");
+
+        //Display item count and total cost in the dialog body
+        alert.setContentText(String.format("Items: %d\nTotal: £%.2f", totalItems, totalCost));
+
+        //showAndWait pauses execution until the user responds
+        // and returns as an optional containing the clicked ButtonType
+        Optional<ButtonType> result = alert.showAndWait();
+
+        //return true only if the user clicked the OK button
+        return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    //Displays an informational message dialog to user
+    //used for non-interactive notifications: warnings, status updates etc
+    //For checkout
+    public void showInfoMessage(String title, String message) {
+        //Create an information-type alert dialog
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title); //Set dialog title
+        alert.setHeaderText(null); //No header text for a simple info message
+        alert.setContentText(message); //Set the main message content
+        alert.showAndWait(); //Show the dialog and wait until the user closes it
+    }
+
+    //show the receipt
+    public void showReceiptPage(String receiptText)
+    {
+        showTrolleyOrReceiptPage(vbReceiptPage);
+        taReceipt.setText(receiptText);
+    }
 }
+
